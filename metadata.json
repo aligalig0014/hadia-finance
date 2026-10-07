@@ -1,0 +1,9 @@
+{
+  "name": "HADIYA Trade Pro - Real Trading & EasyPaisa/JazzCash Portal",
+  "description": "Premium real-time trading platform powered by HADIYA with live charts, EasyPaisa/JazzCash deposits, secure authentication, and Admin Approval portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
+
+
