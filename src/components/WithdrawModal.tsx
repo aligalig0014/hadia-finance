@@ -1,220 +1,291 @@
 import React, { useState } from 'react';
-import { PaymentMethod, WithdrawalRequest, AdminSettings } from '../types/trade';
-import { X, CheckCircle2 } from 'lucide-react';
-import { soundManager } from '../utils/audio';
+import { X, ArrowUpRight, CheckCircle2, AlertCircle, History, Shield, Wallet, Smartphone, Building2 } from 'lucide-react';
+import { useGame } from '../context/GameContext';
 
-interface WithdrawModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  balance: number;
-  adminSettings: AdminSettings;
-  onSubmitWithdrawal: (req: Omit<WithdrawalRequest, 'id' | 'status' | 'createdAt'>) => void;
-  lang: 'en' | 'ur';
-}
+type WithdrawMethod = 'easypaisa' | 'jazzcash' | 'bank';
 
-export const WithdrawModal: React.FC<WithdrawModalProps> = ({
-  isOpen,
-  onClose,
-  balance,
-  adminSettings,
-  onSubmitWithdrawal,
-  lang,
-}) => {
-  const [method, setMethod] = useState<PaymentMethod>('EASYPAISA');
-  const [amount, setAmount] = useState<number>(1000);
-  const [accountNumber, setAccountNumber] = useState<string>('03001234567');
-  const [accountTitle, setAccountTitle] = useState<string>('Muhammad Ali');
-  const [submitted, setSubmitted] = useState<boolean>(false);
+export const WithdrawModal: React.FC = () => {
+  const { isWithdrawModalOpen, setIsWithdrawModalOpen, simulateWithdraw, withdrawals, user } = useGame();
 
-  if (!isOpen) return null;
+  const [method, setMethod] = useState<WithdrawMethod>('easypaisa');
+  const [accountTitle, setAccountTitle] = useState<string>(user.name || '');
+  const [accountNumber, setAccountNumber] = useState<string>('');
+  const [amount, setAmount] = useState<number>(500);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [successMsg, setSuccessMsg] = useState<string>('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  if (!isWithdrawModalOpen) return null;
+
+  const handlePercentage = (pct: number) => {
+    const calculated = Math.floor((user.virtualCoins * pct) / 100);
+    setAmount(Math.max(200, calculated));
+    setErrorMsg('');
+  };
+
+  const handleWithdraw = (e: React.FormEvent) => {
     e.preventDefault();
-    if (amount > balance) {
-      alert(lang === 'ur' ? 'آپ کا بیلنس ناکافی ہے!' : 'Insufficient wallet balance!');
-      return;
-    }
-    if (amount < adminSettings.minWithdrawal) {
-      alert(
-        lang === 'ur'
-          ? `کم سے کم رقم PKR ${adminSettings.minWithdrawal} ہے!`
-          : `Minimum withdrawal is PKR ${adminSettings.minWithdrawal}!`
-      );
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!accountTitle.trim() || !accountNumber.trim()) {
+      setErrorMsg('Meharbani karke account title aur number darj karein.');
       return;
     }
 
-    soundManager.playTradePlaced();
-    onSubmitWithdrawal({
-      userId: 'user_current',
-      userName: accountTitle,
-      accountNumber,
-      accountTitle,
-      paymentMethod: method,
-      amount,
-    });
-    setSubmitted(true);
+    const methodName = method === 'easypaisa' ? 'EasyPaisa' : method === 'jazzcash' ? 'JazzCash' : 'Bank Transfer';
+    const res = simulateWithdraw(method, methodName, accountTitle.trim(), accountNumber.trim(), amount);
+
+    if (res.success) {
+      setSuccessMsg(`Withdrawal Request Kamyab! ${amount.toLocaleString()} virtual coins dispatched.`);
+      setTimeout(() => {
+        setSuccessMsg('');
+        setIsWithdrawModalOpen(false);
+      }, 1800);
+    } else {
+      setErrorMsg(res.error || 'Withdrawal failed');
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-md bg-[#111624] border border-slate-800 rounded-2xl shadow-2xl p-5 md:p-6 text-slate-100">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-base font-black text-white">
-                HADIYA <span className="text-amber-400">VIP</span>
-              </span>
-              <span className="text-xs font-bold text-slate-300">
-                {lang === 'ur' ? 'رقم نکلوائیں (Withdraw)' : 'Payout Portal'}
-              </span>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-lg bg-[#0c1020] border-t sm:border border-purple-500/40 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl flex flex-col gap-4 max-h-[92vh] overflow-y-auto">
+        {/* Top Header */}
+        <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+              <ArrowUpRight className="w-5 h-5" />
             </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {lang === 'ur'
-                ? 'ایزی پیسہ یا جاز کیش اکاؤنٹ میں فوری کیش ٹرانسفر'
-                : 'Fast EasyPaisa & JazzCash payout directly to your mobile wallet'}
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-brand font-black text-base purple-gradient-text">
+                  DEMO WITHDRAW / NIKALWANA
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  SIMULATOR
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400">Paisa Nikalwayen • Virtual Payout Simulator</p>
+            </div>
           </div>
+
           <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+            onClick={() => setIsWithdrawModalOpen(false)}
+            className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {submitted ? (
-          <div className="py-8 text-center flex flex-col items-center">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-3">
-              <CheckCircle2 className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">
-              {lang === 'ur' ? 'درخواست ایڈمن کو موصول ہو گئی!' : 'Withdrawal Request Submitted!'}
-            </h3>
-            <p className="text-xs text-slate-300 max-w-sm mb-6">
-              {lang === 'ur'
-                ? `ایڈمن (${adminSettings.adminPhone}) آپ کی درخواست کا جائزہ لے کر PKR ${amount.toLocaleString()} منتقل کر دے گا۔`
-                : `Admin (${adminSettings.adminPhone}) will process PKR ${amount.toLocaleString()} to ${accountNumber} shortly.`}
-            </p>
+        {/* Current Balance Bar */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/60 to-slate-900 border border-purple-500/30 flex items-center justify-between">
+          <div>
+            <span className="text-[11px] text-slate-400 block">Available Withdrawable Balance:</span>
+            <span className="font-display font-black text-xl text-amber-300">
+              🪙 {user.virtualCoins.toLocaleString()} Coins
+            </span>
+          </div>
+
+          <div className="text-right">
+            <span className="text-[10px] text-slate-400 block">Min Withdraw:</span>
+            <span className="font-mono text-xs font-bold text-slate-200">200 Coins</span>
+          </div>
+        </div>
+
+        {/* Alerts */}
+        {errorMsg && (
+          <div className="p-3 rounded-xl bg-red-950/80 border border-red-500/50 text-red-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+        {successMsg && (
+          <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-400 text-emerald-300 text-xs flex items-center gap-2 animate-bounce">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* Method Selection */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-slate-300">
+            1. Payout Method (Kahan Paise Bhejne Hain?):
+          </label>
+          <div className="grid grid-cols-3 gap-2">
             <button
-              onClick={() => {
-                setSubmitted(false);
-                onClose();
-              }}
-              className="py-2.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs"
+              type="button"
+              onClick={() => setMethod('easypaisa')}
+              className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-1 ${
+                method === 'easypaisa'
+                  ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
             >
-              {lang === 'ur' ? 'ٹھیک ہے' : 'Done'}
+              <Smartphone className="w-4 h-4" />
+              <span>EasyPaisa</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMethod('jazzcash')}
+              className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-1 ${
+                method === 'jazzcash'
+                  ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>JazzCash</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMethod('bank')}
+              className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-1 ${
+                method === 'bank'
+                  ? 'bg-blue-500/20 border-blue-400 text-blue-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Bank Transfer</span>
             </button>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
-              <span className="text-xs text-slate-400">{lang === 'ur' ? 'قابل واپسی بیلنس:' : 'Available Balance:'}</span>
-              <span className="text-base font-extrabold text-emerald-400 font-mono-numbers">
-                PKR {balance.toLocaleString()}
-              </span>
-            </div>
+        </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-400 block mb-1">
-                {lang === 'ur' ? 'طریقہ منتخب کریں' : 'Withdraw Method'}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setMethod('EASYPAISA')}
-                  className={`p-2.5 rounded-xl border text-center font-bold text-xs ${
-                    method === 'EASYPAISA'
-                      ? 'border-emerald-500 bg-emerald-950/30 text-emerald-400'
-                      : 'border-slate-800 bg-slate-900 text-slate-400'
-                  }`}
-                >
-                  EasyPaisa (ایزی پیسہ)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMethod('JAZZCASH')}
-                  className={`p-2.5 rounded-xl border text-center font-bold text-xs ${
-                    method === 'JAZZCASH'
-                      ? 'border-amber-500 bg-amber-950/30 text-amber-400'
-                      : 'border-slate-800 bg-slate-900 text-slate-400'
-                  }`}
-                >
-                  JazzCash (جاز کیش)
-                </button>
-              </div>
-            </div>
+        {/* Amount Input & Percentage Buttons */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-300">
+              2. Amount (Kitna Withdraw Krna Hai?):
+            </label>
+            <span className="font-mono text-xs font-bold text-amber-400">
+              {amount.toLocaleString()} Coins
+            </span>
+          </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-400 block mb-1">
-                {lang === 'ur' ? 'رقم درج کریں (PKR)' : 'Withdraw Amount (PKR)'}
-              </label>
+          <div className="relative">
+            <input
+              type="number"
+              min={200}
+              max={user.virtualCoins}
+              value={amount}
+              onChange={e => setAmount(Number(e.target.value))}
+              className="w-full pl-3.5 pr-14 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-bold text-white focus:outline-none focus:border-purple-500"
+            />
+            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+              Coins
+            </span>
+          </div>
 
-              {/* Quick Amount Chips */}
-              <div className="grid grid-cols-4 gap-1.5 mb-2">
-                {[500, 1000, 2500, 5000].map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setAmount(Math.min(balance, p))}
-                    className={`py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                      amount === p
-                        ? 'bg-blue-600 border-blue-500 text-white'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Rs {p >= 1000 ? `${p / 1000}k` : p}
-                  </button>
-                ))}
-              </div>
-
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(Number(e.target.value) || 0)}
-                max={balance}
-                min={adminSettings.minWithdrawal}
-                step="100"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono-numbers font-bold outline-none focus:border-blue-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-400 block mb-1">
-                {lang === 'ur' ? 'موبائل اکاؤنٹ نمبر (جس پر رقم چاہیے)' : 'Account Mobile Number'}
-              </label>
-              <input
-                type="text"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
-                placeholder="03xxxxxxxxx"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-blue-500 font-mono-numbers"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-400 block mb-1">
-                {lang === 'ur' ? 'اکاؤنٹ کا نام (Account Title)' : 'Account Holder Title / Name'}
-              </label>
-              <input
-                type="text"
-                value={accountTitle}
-                onChange={(e) => setAccountTitle(e.target.value)}
-                placeholder="Muhammad Ali"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
-                required
-              />
-            </div>
-
+          <div className="grid grid-cols-4 gap-2 mt-1">
             <button
-              type="submit"
-              disabled={balance < adminSettings.minWithdrawal}
-              className="w-full py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition-colors shadow-lg shadow-blue-950/40 text-sm"
+              type="button"
+              onClick={() => handlePercentage(25)}
+              className="py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 hover:bg-slate-800"
             >
-              {lang === 'ur' ? 'درخواست بھیجیں' : 'Submit Withdrawal Request'}
+              25%
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => handlePercentage(50)}
+              className="py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 hover:bg-slate-800"
+            >
+              50%
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePercentage(75)}
+              className="py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 hover:bg-slate-800"
+            >
+              75%
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePercentage(100)}
+              className="py-1.5 rounded-lg bg-purple-600/30 border border-purple-500 text-xs font-bold text-purple-300 hover:bg-purple-600/50"
+            >
+              MAX 100%
+            </button>
+          </div>
+        </div>
+
+        {/* Withdrawal Form */}
+        <form onSubmit={handleWithdraw} className="flex flex-col gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+              Account Title (Name on Account):
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Ali Khan"
+              value={accountTitle}
+              onChange={e => setAccountTitle(e.target.value)}
+              required
+              className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+              Account Number / IBAN:
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 03451234567 or Bank IBAN"
+              value={accountNumber}
+              onChange={e => setAccountNumber(e.target.value)}
+              required
+              className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={user.virtualCoins < 200 || amount > user.virtualCoins}
+            className={`w-full py-3.5 rounded-xl font-display font-black text-sm tracking-wider shadow-lg transition flex items-center justify-center gap-2 ${
+              user.virtualCoins < 200 || amount > user.virtualCoins
+                ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:opacity-95 text-white purple-glow active:scale-95'
+            }`}
+          >
+            <ArrowUpRight className="w-5 h-5" />
+            <span>SUBMIT WITHDRAW REQUEST ({amount.toLocaleString()} COINS)</span>
+          </button>
+        </form>
+
+        {/* Safety Disclaimer */}
+        <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 flex items-start gap-2 text-[10px] text-slate-400">
+          <Shield className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+          <span>
+            <strong>Simulation Note:</strong> Withdrawals are demo simulation entries demonstrating game mechanics with virtual entertainment credits.
+          </span>
+        </div>
+
+        {/* Withdrawal History */}
+        {withdrawals.length > 0 && (
+          <div className="flex flex-col gap-2 pt-1 border-t border-slate-800">
+            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
+              <History className="w-3.5 h-3.5 text-purple-400" />
+              <span>Recent Payout Requests:</span>
+            </span>
+            <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
+              {withdrawals.slice(0, 4).map(w => (
+                <div
+                  key={w.id}
+                  className="p-2 rounded-lg bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs"
+                >
+                  <div>
+                    <span className="font-bold text-slate-200">{w.accountTitle} ({w.methodName})</span>
+                    <span className="block text-[9px] text-slate-500">{w.accountNumber}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono font-bold text-amber-300">-{w.amount.toLocaleString()}</span>
+                    <span className="block text-[9px] text-emerald-400 font-semibold">Completed</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

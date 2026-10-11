@@ -3,28 +3,120 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background-color: #0b0e14;
-    color: #f1f5f9;
+    background-color: #0b030e;
+    color: #fdf2f8;
   }
   
-  .font-mono-numbers {
-    font-family: 'JetBrains Mono', monospace;
+  .font-cursive {
+    font-family: 'Great Vibes', cursive;
+  }
+
+  .font-script {
+    font-family: 'Dancing Script', cursive;
+  }
+
+  .font-signature {
+    font-family: 'Alex Brush', cursive;
+  }
+
+  .font-serif-luxury {
+    font-family: 'Playfair Display', Georgia, serif;
   }
 }
 
-/* Custom modern scrollbar */
+/* Romantic Glass & Glows */
+.glass-romantic {
+  background: rgba(26, 11, 28, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(244, 114, 182, 0.2);
+}
+
+.glass-letter {
+  background: radial-gradient(circle at 50% 0%, #fffdfa 0%, #fef3c7 40%, #fae8b2 100%);
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px rgba(245, 158, 11, 0.2);
+}
+
+.rose-glow {
+  box-shadow: 0 0 35px -5px rgba(244, 63, 94, 0.45), 0 0 15px rgba(236, 72, 153, 0.3);
+}
+
+.gold-glow {
+  box-shadow: 0 0 35px -5px rgba(251, 191, 36, 0.45), 0 0 15px rgba(245, 158, 11, 0.3);
+}
+
+.text-gold-gradient {
+  background: linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-rose-gradient {
+  background: linear-gradient(135deg, #fbcfe8 0%, #f43f5e 50%, #be123c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes pulse-heart {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+.animate-heartbeat {
+  animation: pulse-heart 1.4s ease-in-out infinite;
+}
+
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1.5deg);
+  }
+}
+
+.animate-float {
+  animation: float-gentle 4s ease-in-out infinite;
+}
+
+/* Custom romantic scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #110517;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
+  background: #831843;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #9d174d;
+}
+
+/* Custom modern scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #090d1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #272f4e;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3b466f;
+}
+
+/* Prevent unwanted pull-to-refresh gestures interfering with mini-games */
+html, body {
+  overscroll-behavior-y: contain;
 }
 

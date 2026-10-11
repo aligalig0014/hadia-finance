@@ -1,82 +1,70 @@
 import React from 'react';
-import { TrendingUp, ArrowDownCircle, ArrowUpCircle, Crown, History } from 'lucide-react';
-import { UserAccount } from '../types/trade';
+import { Home, Gamepad2, Gift, Trophy, User } from 'lucide-react';
+import { useGame } from '../context/GameContext';
 
-interface BottomMobileNavProps {
-  onOpenDeposit: () => void;
-  onOpenWithdraw: () => void;
-  onOpenProfile: () => void;
-  onOpenAuth: () => void;
-  user: UserAccount | null;
-  lang: 'en' | 'ur';
-}
+export const BottomMobileNav: React.FC = () => {
+  const { activeTab, setActiveTab, user } = useGame();
 
-export const BottomMobileNav: React.FC<BottomMobileNavProps> = ({
-  onOpenDeposit,
-  onOpenWithdraw,
-  onOpenProfile,
-  onOpenAuth,
-  user,
-  lang,
-}) => {
-  const scrollToTrades = () => {
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-  };
+  // Check if daily streak has unclaimed reward for today
+  const hasUnclaimedDaily = user.claimedDays.length < 7;
+
+  const tabs = [
+    { id: 'home' as const, label: 'Home', icon: Home },
+    { id: 'games' as const, label: 'Games', icon: Gamepad2, badge: '12' },
+    { id: 'rewards' as const, label: 'Rewards', icon: Gift, hasDot: hasUnclaimedDaily },
+    { id: 'ranking' as const, label: 'Ranking', icon: Trophy },
+    { id: 'profile' as const, label: 'Profile', icon: User }
+  ];
 
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 max-w-[420px] w-full z-40 bg-[#0c101c]/95 backdrop-blur-xl border-t border-slate-800 px-2 py-1.5 flex items-center justify-around shadow-2xl">
-      {/* Trade / Market */}
-      <button
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="flex flex-col items-center gap-0.5 py-1 px-2 text-slate-300 hover:text-white transition-colors active:scale-95"
-      >
-        <TrendingUp className="w-5 h-5 text-blue-400" />
-        <span className="text-[10px] font-bold">{lang === 'ur' ? 'مارکیٹ' : 'Trade'}</span>
-      </button>
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#090c1a]/95 backdrop-blur-xl border-t border-purple-500/20 px-2 py-1.5 shadow-[0_-5px_20px_rgba(0,0,0,0.7)]">
+      <div className="max-w-lg mx-auto flex items-center justify-around">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
 
-      {/* Deposit */}
-      <button
-        onClick={onOpenDeposit}
-        className="flex flex-col items-center gap-0.5 py-1 px-2 text-emerald-400 hover:text-emerald-300 transition-colors active:scale-95"
-      >
-        <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/40 shadow-sm">
-          <ArrowDownCircle className="w-4 h-4 text-emerald-400" />
-        </div>
-        <span className="text-[10px] font-extrabold">{lang === 'ur' ? 'ڈپازٹ' : 'Deposit'}</span>
-      </button>
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-200 select-none ${
+                isActive
+                  ? 'text-amber-400 font-bold -translate-y-1'
+                  : 'text-slate-400 hover:text-slate-200 font-medium'
+              }`}
+            >
+              {/* Active glow pill */}
+              {isActive && (
+                <div className="absolute -top-1.5 w-8 h-1 rounded-full bg-gradient-to-r from-amber-400 to-purple-500 gold-glow" />
+              )}
 
-      {/* Withdraw */}
-      <button
-        onClick={onOpenWithdraw}
-        className="flex flex-col items-center gap-0.5 py-1 px-2 text-blue-400 hover:text-blue-300 transition-colors active:scale-95"
-      >
-        <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/40 shadow-sm">
-          <ArrowUpCircle className="w-4 h-4 text-blue-400" />
-        </div>
-        <span className="text-[10px] font-extrabold">{lang === 'ur' ? 'نکلوائیں' : 'Withdraw'}</span>
-      </button>
+              <div className="relative">
+                <Icon
+                  className={`w-5 h-5 transition-transform ${
+                    isActive ? 'scale-110 text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.6)]' : ''
+                  }`}
+                />
 
-      {/* Trades History */}
-      <button
-        onClick={scrollToTrades}
-        className="flex flex-col items-center gap-0.5 py-1 px-2 text-slate-300 hover:text-white transition-colors active:scale-95"
-      >
-        <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 shadow-sm">
-          <History className="w-4 h-4 text-slate-300" />
-        </div>
-        <span className="text-[10px] font-bold">{lang === 'ur' ? 'ٹریڈز' : 'Trades'}</span>
-      </button>
+                {/* Number Badge */}
+                {tab.badge && (
+                  <span className="absolute -top-1.5 -right-2 px-1 py-0.2 rounded-full bg-purple-600 text-[8px] font-black text-white leading-none">
+                    {tab.badge}
+                  </span>
+                )}
 
-      {/* VIP Profile or Login */}
-      <button
-        onClick={user ? onOpenProfile : onOpenAuth}
-        className="flex flex-col items-center gap-0.5 py-1 px-2 text-amber-400 hover:text-amber-300 transition-colors active:scale-95"
-      >
-        <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/40 shadow-sm">
-          <Crown className="w-4 h-4 text-amber-400" />
-        </div>
-        <span className="text-[10px] font-extrabold">HADIYA VIP</span>
-      </button>
-    </div>
+                {/* Dot Badge */}
+                {tab.hasDot && (
+                  <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                )}
+              </div>
+
+              <span className={`text-[10px] mt-1 tracking-tight ${isActive ? 'gold-gradient-text' : ''}`}>
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 };

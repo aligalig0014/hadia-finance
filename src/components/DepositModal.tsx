@@ -1,415 +1,297 @@
 import React, { useState } from 'react';
-import { AdminSettings, DepositRequest, PaymentMethod } from '../types/trade';
-import {
-  X,
-  Copy,
-  Check,
-  Upload,
-  MessageCircle,
-  ShieldCheck,
-  AlertCircle,
-  Sparkles,
-} from 'lucide-react';
-import { soundManager } from '../utils/audio';
+import { X, ArrowDownCircle, CheckCircle2, Copy, Shield, Sparkles, AlertCircle, History, Smartphone, Building2, Coins } from 'lucide-react';
+import { useGame } from '../context/GameContext';
 
-interface DepositModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  adminSettings: AdminSettings;
-  onSubmitDeposit: (deposit: Omit<DepositRequest, 'id' | 'status' | 'createdAt'>) => void;
-  userPhone: string;
-  userName: string;
-  lang: 'en' | 'ur';
-  onOpenAdminPanel?: () => void;
+type PaymentMethod = 'easypaisa' | 'jazzcash' | 'bank' | 'crypto';
+
+interface MethodConfig {
+  id: PaymentMethod;
+  name: string;
+  accountNumber: string;
+  accountTitle: string;
+  badge: string;
+  badgeColor: string;
 }
+
+const METHODS: MethodConfig[] = [
+  {
+    id: 'easypaisa',
+    name: 'EasyPaisa',
+    accountNumber: '032207514560',
+    accountTitle: 'ALI KING OFFICIAL EASYPAISA',
+    badge: 'VERIFIED',
+    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+  },
+  {
+    id: 'jazzcash',
+    name: 'JazzCash',
+    accountNumber: '0300-1122334',
+    accountTitle: 'ALI KING RECHARGE DEMO',
+    badge: 'POPULAR',
+    badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+  },
+  {
+    id: 'bank',
+    name: 'Bank Transfer',
+    accountNumber: 'PK82 MEZN 0001 2345 6789 01',
+    accountTitle: 'ALI KING ENTERTAINMENT',
+    badge: 'DIRECT',
+    badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+  },
+  {
+    id: 'crypto',
+    name: 'USDT / Crypto',
+    accountNumber: 'TRX7xAliKingDemoWalletUSDT892',
+    accountTitle: 'TRC-20 Virtual Network',
+    badge: 'GLOBAL',
+    badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+  }
+];
 
 const PRESET_AMOUNTS = [500, 1000, 2000, 5000, 10000, 25000];
 
-export const DepositModal: React.FC<DepositModalProps> = ({
-  isOpen,
-  onClose,
-  adminSettings,
-  onSubmitDeposit,
-  userPhone: initialPhone,
-  userName: initialName,
-  lang,
-  onOpenAdminPanel,
-}) => {
-  const [method, setMethod] = useState<PaymentMethod>('EASYPAISA');
+export const DepositModal: React.FC = () => {
+  const { isDepositModalOpen, setIsDepositModalOpen, simulateDeposit, deposits, user } = useGame();
+
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('easypaisa');
   const [amount, setAmount] = useState<number>(1000);
-  const [senderPhone, setSenderPhone] = useState<string>(initialPhone || '03001234567');
-  const [senderName, setSenderName] = useState<string>(initialName || 'Trader Pakistan');
-  const [tid, setTid] = useState<string>('');
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [senderAccount, setSenderAccount] = useState<string>('');
+  const [senderName, setSenderName] = useState<string>(user.name || '');
+  const [trxId, setTrxId] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
-  const [submittedSuccess, setSubmittedSuccess] = useState<boolean>(false);
+  const [showSuccess, setShowSuccess] = useState<boolean>(false);
 
-  if (!isOpen) return null;
+  if (!isDepositModalOpen) return null;
 
-  const currentNumber =
-    method === 'EASYPAISA'
-      ? adminSettings.easypaisaNumber
-      : method === 'JAZZCASH'
-      ? adminSettings.jazzcashNumber
-      : adminSettings.bankAccountNumber;
+  const currentMethod = METHODS.find(m => m.id === selectedMethod)!;
 
-  const currentTitle =
-    method === 'EASYPAISA'
-      ? adminSettings.easypaisaTitle
-      : method === 'JAZZCASH'
-      ? adminSettings.jazzcashTitle
-      : `${adminSettings.bankName} - ${adminSettings.bankAccountTitle}`;
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(currentNumber);
+  const handleCopy = (text: string) => {
+    navigator.clipboard?.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setScreenshotPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Prepares the WhatsApp message to Admin 03220751456
-  const getWhatsAppUrl = () => {
-    const cleanAdminPhone = adminSettings.adminPhone.replace(/^0/, '92').replace(/[^0-9]/g, '');
-    const methodName =
-      method === 'EASYPAISA' ? 'EasyPaisa' : method === 'JAZZCASH' ? 'JazzCash' : 'Bank Transfer';
-    const message = `Assalam-o-Alaikum Admin!%0A%0A👑 *HADIA TRADE VIP - NEW DEPOSIT RECEIPT* 👑%0A%0A👤 *User Name:* ${encodeURIComponent(
-      senderName || 'HADIA VIP User'
-    )}%0A📱 *Sender Phone:* ${senderPhone}%0A💳 *Method:* ${methodName}%0A💰 *Amount Sent:* PKR ${amount.toLocaleString()}%0A🔢 *Transaction ID (TID):* ${
-      tid || 'Pending Verification'
-    }%0A%0A📎 *Payment Screenshot is attached in this chat! Kindly verify and approve my deposit.*`;
-
-    return `https://wa.me/${cleanAdminPhone}?text=${message}`;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmitDeposit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tid) {
-      alert(lang === 'ur' ? 'برائے مہربانی ٹرانزیکشن آئی ڈی (TID) درج کریں!' : 'Please enter the Transaction ID (TID)!');
-      return;
-    }
+    if (amount <= 0) return;
 
-    soundManager.playTradePlaced();
-    onSubmitDeposit({
-      userId: 'user_' + Math.floor(100000 + Math.random() * 900000),
-      userName: senderName,
-      userPhone: senderPhone,
+    const generatedTrx = trxId.trim() || `TXN${Math.floor(10000000 + Math.random() * 90000000)}`;
+    simulateDeposit(
+      selectedMethod,
+      currentMethod.name,
+      senderAccount || '0300-XXXXXXX',
+      senderName || user.name,
       amount,
-      paymentMethod: method,
-      transactionId: tid,
-      screenshotUrl: screenshotPreview || undefined,
-    });
+      generatedTrx
+    );
 
-    setSubmittedSuccess(true);
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      setIsDepositModalOpen(false);
+    }, 1800);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-[#111624] border border-slate-800 rounded-2xl shadow-2xl p-5 md:p-6 text-slate-100 my-8">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-              <h2 className="text-lg md:text-xl font-black text-white flex items-center gap-1.5">
-                HADIA <span className="text-amber-400">VIP</span>
-                <span className="text-slate-300 font-extrabold text-sm sm:text-base">
-                  {lang === 'ur' ? 'ڈپازٹ پورٹل' : 'Deposit Portal'}
-                </span>
-              </h2>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-lg bg-[#0c1020] border-t sm:border border-amber-500/40 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl flex flex-col gap-4 max-h-[92vh] overflow-y-auto">
+        {/* Top Header */}
+        <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+              <ArrowDownCircle className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {lang === 'ur'
-                ? 'ایزی پیسہ / جاز کیش سے رقم بھیجیں، رسید واٹس ایپ 03220751456 پر بھیجیں اور فوری منظوری لیں!'
-                : 'Send funds, submit TID & send screenshot to Admin on WhatsApp for instant approval!'}
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-brand font-black text-base gold-gradient-text">
+                  DEMO DEPOSIT / RECHARGE
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  SIMULATOR
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400">Paisa Jama Karein • Virtual Coins Recharge</p>
+            </div>
           </div>
+
           <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            onClick={() => setIsDepositModalOpen(false)}
+            className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {submittedSuccess ? (
-          <div className="py-8 text-center flex flex-col items-center">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 border border-emerald-500/30">
-              <Sparkles className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2">
-              {lang === 'ur' ? 'ڈپازٹ کی درخواست جمع ہو گئی!' : 'Deposit Submitted Successfully!'}
-            </h3>
-            <p className="text-sm text-slate-300 max-w-md mb-6 leading-relaxed">
-              {lang === 'ur'
-                ? `آپ کا ڈپازٹ (PKR ${amount.toLocaleString()}) ایڈمن پینل کو بھیج دیا گیا ہے۔ ایڈمن (03220751456) تصدیق کر کے فوراً بیلنس ایڈ کرے گا۔`
-                : `Your deposit request for PKR ${amount.toLocaleString()} has been queued for Admin verification. Admin (${adminSettings.adminPhone}) will review and approve it shortly.`}
-            </p>
+        {/* Current Balance Bar */}
+        <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+          <span className="text-xs text-slate-400">Aapka Mojuda Balance:</span>
+          <span className="font-display font-black text-base text-amber-400">
+            🪙 {user.virtualCoins.toLocaleString()} Coins
+          </span>
+        </div>
 
-            <div className="flex flex-col gap-2.5 w-full max-w-md">
-              <a
-                href={getWhatsAppUrl()}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#25D366] hover:bg-[#20ba59] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 text-sm"
+        {/* Payment Methods Tabs */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-slate-300">
+            1. Select Payment Method (Payment Option Chunein):
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {METHODS.map(m => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setSelectedMethod(m.id)}
+                className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                  selectedMethod === m.id
+                    ? 'bg-amber-500/20 border-amber-400 text-white gold-glow'
+                    : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
               >
-                <MessageCircle className="w-4 h-4" />
-                <span>{lang === 'ur' ? 'واٹس ایپ پر رسید بھیجیں' : 'Send Screenshot on WhatsApp'}</span>
-              </a>
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-white">{m.name}</span>
+                  <span className={`text-[8px] font-extrabold px-1 py-0.2 rounded border ${m.badgeColor}`}>
+                    {m.badge}
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400 mt-1 truncate">Demo Account</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-              {onOpenAdminPanel && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onOpenAdminPanel();
-                  }}
-                  className="w-full py-2.5 px-4 rounded-xl font-bold text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 transition-all flex items-center justify-center gap-2 text-xs"
-                >
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span>{lang === 'ur' ? 'ایڈمن پینل سے پیمنٹ منظوری دیں' : 'Open Admin Panel to Approve'}</span>
-                </button>
-              )}
-            </div>
-
+        {/* Deposit Instruction Card */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#18132e] to-[#0d0f20] border border-amber-500/30 flex flex-col gap-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">{currentMethod.name} Demo Number:</span>
             <button
-              onClick={() => {
-                setSubmittedSuccess(false);
-                onClose();
-              }}
-              className="mt-4 text-xs text-slate-400 hover:text-slate-200"
+              onClick={() => handleCopy(currentMethod.accountNumber)}
+              className="text-amber-400 font-bold hover:underline flex items-center gap-1 text-[11px]"
             >
-              {lang === 'ur' ? 'بند کریں' : 'Close window'}
+              <Copy className="w-3 h-3" />
+              <span>{copied ? 'Copied!' : 'Copy'}</span>
             </button>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-            {/* Payment Method Selector */}
+
+          <div className="font-mono font-black text-base text-amber-300 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
+            <span>{currentMethod.accountNumber}</span>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+            <span>Account Title:</span>
+            <span className="font-semibold text-slate-200">{currentMethod.accountTitle}</span>
+          </div>
+        </div>
+
+        {/* Amount Selection */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-300">
+              2. Deposit Amount (Paisa / Coins):
+            </label>
+            <span className="font-mono text-xs font-bold text-amber-400">
+              Selected: {amount.toLocaleString()} Coins
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {PRESET_AMOUNTS.map(amt => (
+              <button
+                key={amt}
+                type="button"
+                onClick={() => setAmount(amt)}
+                className={`py-2 rounded-xl font-mono text-xs font-bold border transition ${
+                  amount === amt
+                    ? 'bg-amber-500 border-yellow-300 text-slate-950 gold-glow'
+                    : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                +{amt.toLocaleString()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Deposit Form */}
+        <form onSubmit={handleSubmitDeposit} className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
-                {lang === 'ur' ? 'پیمنٹ کا طریقہ منتخب کریں' : 'Choose Payment Method'}
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {/* EasyPaisa */}
-                <button
-                  type="button"
-                  onClick={() => setMethod('EASYPAISA')}
-                  className={`p-3 rounded-xl border text-center transition-all ${
-                    method === 'EASYPAISA'
-                      ? 'border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500'
-                      : 'border-slate-800 bg-slate-900/60 hover:bg-slate-800'
-                  }`}
-                >
-                  <div className="font-extrabold text-sm text-emerald-400">EasyPaisa</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">ایزی پیسہ</div>
-                </button>
-
-                {/* JazzCash */}
-                <button
-                  type="button"
-                  onClick={() => setMethod('JAZZCASH')}
-                  className={`p-3 rounded-xl border text-center transition-all ${
-                    method === 'JAZZCASH'
-                      ? 'border-rose-500 bg-rose-950/30 ring-1 ring-rose-500'
-                      : 'border-slate-800 bg-slate-900/60 hover:bg-slate-800'
-                  }`}
-                >
-                  <div className="font-extrabold text-sm text-amber-400">JazzCash</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">جاز کیش</div>
-                </button>
-
-                {/* Bank */}
-                <button
-                  type="button"
-                  onClick={() => setMethod('BANK_TRANSFER')}
-                  className={`p-3 rounded-xl border text-center transition-all ${
-                    method === 'BANK_TRANSFER'
-                      ? 'border-blue-500 bg-blue-950/30 ring-1 ring-blue-500'
-                      : 'border-slate-800 bg-slate-900/60 hover:bg-slate-800'
-                  }`}
-                >
-                  <div className="font-extrabold text-sm text-blue-400">Bank Transfer</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">بینک اکاؤنٹ</div>
-                </button>
-              </div>
-            </div>
-
-            {/* Admin Account Details Box with One-Click Copy */}
-            <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-750 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">
-                  {lang === 'ur' ? 'ایڈمن کا اکاؤنٹ نمبر:' : 'Admin Account Details:'}
-                </span>
-                <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">
-                  Official Admin
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between bg-black/40 p-2.5 rounded-lg border border-slate-800">
-                <div>
-                  <div className="text-[11px] text-slate-400">Title: <span className="text-white font-bold">{currentTitle}</span></div>
-                  <div className="text-lg font-extrabold font-mono-numbers text-emerald-400 tracking-wider">
-                    {currentNumber}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-amber-300/90 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>
-                  {lang === 'ur'
-                    ? `رقم بھیجنے کے بعد سکرین شاٹ ایڈمن کے واٹس ایپ (${adminSettings.adminPhone}) پر بھیجیں!`
-                    : `After payment, send screenshot to Admin WhatsApp (${adminSettings.adminPhone})!`}
-                </span>
-              </div>
-            </div>
-
-            {/* Amount Selection */}
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">
-                {lang === 'ur' ? 'ڈپازٹ کی رقم منتخب کریں (PKR)' : 'Select Amount (PKR)'}
-              </label>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mb-2">
-                {PRESET_AMOUNTS.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setAmount(p)}
-                    className={`py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                      amount === p
-                        ? 'bg-blue-600 border-blue-500 text-white'
-                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    Rs {p >= 1000 ? `${p / 1000}k` : p}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 focus-within:border-blue-500">
-                <span className="text-sm font-bold text-slate-400 mr-2">PKR</span>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(Math.max(adminSettings.minDeposit, Number(e.target.value) || 0))}
-                  min={adminSettings.minDeposit}
-                  step="100"
-                  className="w-full bg-transparent text-white font-bold outline-none font-mono-numbers"
-                  placeholder="Custom Amount"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Sender Details */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-400 block mb-1">
-                  {lang === 'ur' ? 'آپ کا موبائل نمبر' : 'Your Phone Number'}
-                </label>
-                <input
-                  type="text"
-                  value={senderPhone}
-                  onChange={(e) => setSenderPhone(e.target.value)}
-                  placeholder="03001234567"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500 font-mono-numbers"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-400 block mb-1">
-                  {lang === 'ur' ? 'آپ کا اکاؤنٹ کا نام' : 'Your Account Name'}
-                </label>
-                <input
-                  type="text"
-                  value={senderName}
-                  onChange={(e) => setSenderName(e.target.value)}
-                  placeholder="Full Name"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Transaction ID (TID) */}
-            <div>
-              <label className="text-xs font-semibold text-slate-400 block mb-1">
-                {lang === 'ur' ? 'ٹرانزیکشن آئی ڈی (TID / Trx ID)' : 'Transaction ID (TID)'} *
+              <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                Aapka Mobile / Sender Number:
               </label>
               <input
                 type="text"
-                value={tid}
-                onChange={(e) => setTid(e.target.value)}
-                placeholder="e.g. 8472910482 (SMS سے حاصل کردہ)"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500 font-mono-numbers"
-                required
+                placeholder="e.g. 03001234567"
+                value={senderAccount}
+                onChange={e => setSenderAccount(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
               />
             </div>
 
-            {/* Screenshot Upload with Preview */}
             <div>
-              <label className="text-xs font-semibold text-slate-400 block mb-1">
-                {lang === 'ur' ? 'پیمنٹ کا سکرین شاٹ لگائیں (رسید)' : 'Upload Payment Screenshot'}
+              <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                Transaction ID (TID optional):
               </label>
-              <div className="flex items-center gap-3">
-                <label className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-slate-700 bg-slate-900/60 hover:bg-slate-800/80 cursor-pointer transition-colors text-slate-300 text-xs">
-                  <Upload className="w-4 h-4 text-blue-400" />
-                  <span>{screenshotPreview ? 'Change Screenshot' : 'Choose Receipt Image / Screenshot'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </label>
+              <input
+                type="text"
+                placeholder="Auto-generated if empty"
+                value={trxId}
+                onChange={e => setTrxId(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+          </div>
 
-                {screenshotPreview && (
-                  <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-750 shrink-0">
-                    <img src={screenshotPreview} alt="Receipt preview" className="w-full h-full object-cover" />
+          {/* Success Overlay */}
+          {showSuccess && (
+            <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-400 text-emerald-300 text-xs text-center font-bold animate-bounce flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Deposit Kamyab! +{amount.toLocaleString()} virtual coins add ho gaye!</span>
+            </div>
+          )}
+
+          {/* Action Button */}
+          <button
+            type="submit"
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 hover:opacity-95 text-slate-950 font-display font-black text-sm tracking-wider shadow-lg gold-glow active:scale-95 transition flex items-center justify-center gap-2"
+          >
+            <Coins className="w-5 h-5 text-slate-950" />
+            <span>CONFIRM RECHARGE (+{amount.toLocaleString()} COINS)</span>
+          </button>
+        </form>
+
+        {/* Safety Disclaimer */}
+        <div className="p-2.5 rounded-xl bg-purple-950/30 border border-purple-500/20 flex items-start gap-2 text-[10px] text-purple-200">
+          <Shield className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+          <span>
+            <strong>Demo Simulator:</strong> This is an authentic educational simulation. No actual bank transfers or real money transactions occur. All recharges credit virtual play coins only.
+          </span>
+        </div>
+
+        {/* Deposit History */}
+        {deposits.length > 0 && (
+          <div className="flex flex-col gap-2 pt-1 border-t border-slate-800">
+            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
+              <History className="w-3.5 h-3.5 text-amber-400" />
+              <span>Pichli Recharge History:</span>
+            </span>
+            <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
+              {deposits.slice(0, 4).map(d => (
+                <div
+                  key={d.id}
+                  className="p-2 rounded-lg bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs"
+                >
+                  <div>
+                    <span className="font-bold text-slate-200">{d.methodName}</span>
+                    <span className="block text-[9px] text-slate-500 font-mono">TID: {d.trxId}</span>
                   </div>
-                )}
-              </div>
+                  <div className="text-right">
+                    <span className="font-mono font-bold text-emerald-400">+{d.amount.toLocaleString()}</span>
+                    <span className="block text-[9px] text-slate-500">{d.timestamp}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-
-            {/* Buttons: WhatsApp to Admin + Submit for Admin Approval */}
-            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
-              <a
-                href={getWhatsAppUrl()}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-[#25D366] hover:bg-[#20ba59] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 text-sm"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>{lang === 'ur' ? 'واٹس ایپ ایڈمن (03220751456)' : 'Send to Admin WhatsApp'}</span>
-              </a>
-
-              <button
-                type="submit"
-                className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-950/40 text-sm"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>{lang === 'ur' ? 'منظوری کیلئے بھیجیں' : 'Submit for Approval'}</span>
-              </button>
-            </div>
-          </form>
+          </div>
         )}
       </div>
     </div>
